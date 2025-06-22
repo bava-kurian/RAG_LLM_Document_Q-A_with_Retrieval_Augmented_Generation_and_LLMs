@@ -17,7 +17,7 @@ class Config:
     
     # Model Configuration
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    LLM_MODEL = os.getenv("LLM_MODEL", "mistralai/Mistral-7B-Instruct-v0.2")
+    LLM_MODEL = os.getenv("LLM_MODEL", "microsoft/DialoGPT-small")
     
     # Text Processing Configuration
     CHUNK_SIZE = 1000
