@@ -56,7 +56,7 @@ A complete Retrieval-Augmented Generation (RAG) application built with modern AI
 
    # Model Configuration
    EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-   LLM_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+   LLM_MODEL=microsoft/DialoGPT-small
    ```
 
 ## 🔑 API Keys Setup
@@ -107,6 +107,9 @@ RAG-LLM/
 ├── llm_handler.py         # Language model handling
 ├── requirements.txt       # Python dependencies
 ├── env_example.txt        # Environment variables template
+├── test_rag.py           # Testing script
+├── quick_start.py        # Quick setup script
+├── example_usage.py      # Example usage script
 └── README.md             # This file
 ```
 
@@ -115,13 +118,19 @@ RAG-LLM/
 ### Model Configuration
 
 - **Embedding Model**: `sentence-transformers/all-MiniLM-L6-v2` (default)
-- **LLM Model**: `mistralai/Mistral-7B-Instruct-v0.2` (default)
+- **LLM Model**: `microsoft/DialoGPT-small` (default, optimized for free tier)
 - **Chunk Size**: 1000 characters
 - **Chunk Overlap**: 200 characters
 
 ### Customization
 
 You can modify the models and parameters in the `config.py` file or through environment variables.
+
+**Note**: For production use, you can change the LLM model to larger models like:
+
+- `mistralai/Mistral-7B-Instruct-v0.2`
+- `tiiuae/falcon-7b-instruct`
+- `microsoft/DialoGPT-medium` or `microsoft/DialoGPT-large`
 
 ## 💡 Example Questions
 
@@ -138,7 +147,8 @@ After loading the sample documents, try these questions:
 
 1. **Model Loading Errors**
 
-   - Ensure you have sufficient RAM (at least 8GB recommended)
+   - Ensure you have sufficient RAM (at least 4GB recommended for default model)
+   - The default model (`microsoft/DialoGPT-small`) is optimized for free tier usage
    - Try using a smaller model if memory is limited
 
 2. **Pinecone Connection Issues**
@@ -146,17 +156,39 @@ After loading the sample documents, try these questions:
    - Verify your API key and environment
    - Check your internet connection
    - Ensure your Pinecone index exists
+   - The application uses Pinecone API v3 - make sure you're using the latest client
 
 3. **Memory Issues**
+
    - Reduce chunk size in `config.py`
    - Use a smaller embedding model
    - Close other applications to free up memory
+   - The default model is optimized for low-memory environments
+
+4. **Accelerate Dependency Issues**
+   - The application includes `accelerate>=0.26.0` in requirements
+   - If you encounter accelerate-related errors, try: `pip install accelerate>=0.26.0`
 
 ### Performance Tips
 
 - Use GPU if available (modify `device_map` in `llm_handler.py`)
 - Adjust chunk size based on your document characteristics
 - Use appropriate number of documents for retrieval (k parameter)
+- The default model is optimized for quick responses on CPU
+
+### Testing
+
+Run the test script to verify your setup:
+
+```bash
+python test_rag.py
+```
+
+For quick setup and testing:
+
+```bash
+python quick_start.py
+```
 
 ## 🤝 Contributing
 
@@ -182,9 +214,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 If you encounter any issues or have questions, please:
 
 1. Check the troubleshooting section
-2. Search existing issues
-3. Create a new issue with detailed information
+2. Run the test script: `python test_rag.py`
+3. Search existing issues
+4. Create a new issue with detailed information
 
 ---
 
-**Note**: This application uses free-tier services. Be mindful of rate limits and usage quotas.
+**Note**: This application uses free-tier services and is optimized for low-resource environments. Be mindful of rate limits and usage quotas.

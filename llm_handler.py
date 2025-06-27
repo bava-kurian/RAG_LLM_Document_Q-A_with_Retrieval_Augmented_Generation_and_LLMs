@@ -14,6 +14,7 @@ class LLMHandler:
         self.model = None
         self.pipeline = None
         self.llm = None
+        self.max_length = 1024  # Set max_length for prompt truncation
         
         # Initialize the model
         self._initialize_model()
@@ -33,10 +34,10 @@ class LLMHandler:
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
+            # Load model without device_map for free tier compatibility
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
-                device_map="auto",
                 torch_dtype="auto"
             )
             
@@ -62,49 +63,73 @@ class LLMHandler:
             print(f"Error loading model {self.model_name}: {str(e)}")
             raise
     
+    def safe_prompt(self, prompt: str) -> str:
+        tokens = self.tokenizer.encode(prompt, truncation=True, max_length=self.max_length)
+        # If truncation occurred, warn or log
+        if len(tokens) == self.max_length:
+            print("⚠️ Prompt was truncated to fit the model's max token length.")
+        return self.tokenizer.decode(tokens, skip_special_tokens=True)
+    
     def generate_response(self, prompt: str) -> str:
         """Generate a response using the language model."""
         try:
-            response = self.llm(prompt)
+            safe_prompt = self.safe_prompt(prompt)
+            response = self.llm.invoke(safe_prompt)
             return response.strip()
         except Exception as e:
             print(f"Error generating response: {str(e)}")
             return f"Error generating response: {str(e)}"
     
-    def create_rag_prompt(self, question: str, context_docs: List[Document]) -> str:
-        """Create a prompt for RAG-based question answering."""
-        # Extract context from documents
-        context = "\n\n".join([doc.page_content for doc in context_docs])
-        
-        # Create the prompt template
-        prompt_template = PromptTemplate(
-            input_variables=["context", "question"],
-            template="""
-            You are a helpful AI assistant. Use the following context to answer the question.
-            If the context doesn't contain enough information to answer the question, say so.
-            
-            Context:
-            {context}
-            
-            Question: {question}
-            
-            Answer:"""
+    def safe_rag_prompt(self, question: str, context_docs: List[Document]) -> str:
+        instruction = (
+            "You are a helpful AI assistant. Use the following context to answer the question.\n"
+            "If the context doesn't contain enough information to answer the question, say so.\n\n"
+            "Context:\n"
         )
-        
-        # Format the prompt
-        prompt = prompt_template.format(context=context, question=question)
+        question_part = f"\n\nQuestion: {question}\n\nAnswer:"
+
+        instr_tokens = self.tokenizer.encode(instruction, add_special_tokens=False)
+        question_tokens = self.tokenizer.encode(question_part, add_special_tokens=False)
+        available_tokens = self.max_length - len(instr_tokens) - len(question_tokens)
+        if available_tokens <= 0:
+            print("⚠️ Not enough space for context in the prompt!")
+            return instruction + "\n\nQuestion: " + question + "\n\nAnswer:"
+
+        # Start with all context docs
+        context = "\n\n".join([doc.page_content for doc in context_docs])
+        context_tokens = self.tokenizer.encode(context, add_special_tokens=False)
+
+        # Truncate context tokens if needed
+        if len(context_tokens) > available_tokens:
+            print("⚠️ Context was truncated to fit the model's max token length.")
+            context_tokens = context_tokens[:available_tokens]
+
+        truncated_context = self.tokenizer.decode(context_tokens, skip_special_tokens=True)
+        prompt = instruction + truncated_context + question_part
+
+        # Final check: re-encode the whole prompt and trim if needed
+        prompt_tokens = self.tokenizer.encode(prompt, add_special_tokens=False)
+        while len(prompt_tokens) > self.max_length:
+            # Remove 10 tokens at a time from the context until it fits
+            context_tokens = context_tokens[:-10]
+            truncated_context = self.tokenizer.decode(context_tokens, skip_special_tokens=True)
+            prompt = instruction + truncated_context + question_part
+            prompt_tokens = self.tokenizer.encode(prompt, add_special_tokens=False)
+            print(f"⚠️ Final prompt still too long ({len(prompt_tokens)} tokens), trimming further.")
+            if len(context_tokens) == 0:
+                print("⚠️ All context removed, but prompt still too long.")
+                break
+
         return prompt
     
     def answer_question_with_context(self, question: str, context_docs: List[Document]) -> str:
         """Answer a question using provided context documents."""
         try:
-            # Create RAG prompt
-            prompt = self.create_rag_prompt(question, context_docs)
-            
+            # Create RAG prompt with context-aware truncation
+            prompt = self.safe_rag_prompt(question, context_docs)
             # Generate response
             response = self.generate_response(prompt)
             return response
-            
         except Exception as e:
             print(f"Error answering question: {str(e)}")
             return f"Error answering question: {str(e)}"
