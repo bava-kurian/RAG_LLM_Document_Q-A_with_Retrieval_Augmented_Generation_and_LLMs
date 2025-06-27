@@ -31,8 +31,8 @@ A complete Retrieval-Augmented Generation (RAG) application built with modern AI
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
-   cd RAG-LLM
+   git clone [<repository-url>](https://github.com/bava-kurian/RAG_LLM_Document_Q-A_with_Retrieval_Augmented_Generation_and_LLMs)
+   cd RAG_LLM_Document_Q-A_with_Retrieval_Augmented_Generation_and_LLMs
    ```
 
 2. **Install dependencies**
